@@ -1,0 +1,174 @@
+* Beginend
+  #+BEGIN_HTML
+      <p>
+        <a href="https://stable.melpa.org/#/beginend">
+          <img alt="MELPA Stable" src="https://stable.melpa.org/packages/beginend-badge.svg"/>
+        </a>
+
+        <a href="https://melpa.org/#/beginend">
+          <img alt="MELPA" src="https://melpa.org/packages/beginend-badge.svg"/>
+        </a>
+
+        <a href="https://github.com/DamienCassou/beginend/actions">
+          <img alt="pipeline status" src="https://github.com/DamienCassou/beginend/actions/workflows/test.yml/badge.svg" />
+        </a>
+      </p>
+  #+END_HTML
+
+** Summary
+
+You might want to read the [[https://emacs.cafe/emacs/package/2017/08/01/beginend.html][introductory blog post]].
+
+Redefine ~M-<~ and ~M->~ (or any key bound to ~beginning-of-buffer~ or
+~end-of-buffer~) for some modes so that point moves to meaningful
+locations. The real beginning and end of buffers (i.e., ~point-min~
+and ~point-max~) are still accessible by pressing the same key again.
+
+In particular, these modes are supported:
+
+| *Mode*                | ~M-<~                   | ~M->~                      |
+|-----------------------+-------------------------+----------------------------|
+| *LaTeX-mode*          | =\begin{document}=      | =\end{document}=           |
+| *bs-mode*             | first buffer            | last buffer                |
+| *compilation-mode*    | first compilation error | last compilation error     |
+| *deft-mode*           | first match             | last match                 |
+| *dired-mode*          | first file              | last file                  |
+| *elfeed-search-mode*  | first feed              | last feed                  |
+| *elfeed-show-mode*    | first body line         | end of buffer              |
+| *epa-key-list-mode*   | first key               | last key                   |
+| *ibuffer-mode*        | first buffer            | last buffer                |
+| *laTeX-mode*          | =\begin{document}=      | =\end{document}=           |
+| *magit-status-mode*   | first section           | last section               |
+| *magit-revision-mode* | first file              | end of buffer              |
+| *message-mode*        | first body line         | last line before signature |
+| *notmuch-search-mode* | first thread            | last thread                |
+| *nroam-mode*          | after the title         | before backlinks           |
+| *occur-mode*          | first match             | last match                 |
+| *org-agenda-mode*     | first agenda item       | last agenda item           |
+| *org-mode*            | first heading           | end of buffer              |
+| *outline-mode*        | first heading           | end of buffer              |
+| *prodigy-mode*        | first service           | last service               |
+| *prog-mode*           | after initial comments  | before final comments      |
+| *recentf-dialog-mode* | first most recent file  | last most recent file      |
+| *rg-mode*             | first match             | last match                 |
+| *vc-dir-mode*         | first interesting file  | last interesting file      |
+
+Finally, beginend does what you expect when your buffer is narrowed.
+
+** Installing
+
+Use [[http://melpa.org/][melpa]].
+
+You can activate beginend for all modes it supports by customizing the
+variable ~beginend-global-mode~ (~M-x customize-variable RET
+beginend-global-mode RET~) or by adding this line to your
+configuration file:
+
+#+BEGIN_SRC emacs-lisp
+(beginend-global-mode)
+#+END_SRC
+
+You can also decide to only activate beginend for some of its
+supported major modes (e.g., through ~beginend-dired-mode~).
+
+*** init.el example configuration
+
+Vanilla Emacs ~init.el~:
+
+#+BEGIN_SRC emacs-lisp
+(require 'beginend)
+(beginend-global-mode)
+#+END_SRC
+
+Configuration with the popular [[https://github.com/jwiegley/use-package][use-package]] macro:
+
+#+BEGIN_SRC emacs-lisp
+(use-package beginend 
+  :ensure t
+  :demand t
+  :config  
+  (beginend-global-mode))
+#+END_SRC
+
+** Cleaning up the modeline
+
+By default, beginend adds the ~be~ lighter to the modeline.
+
+You can use [[https://github.com/myrjola/diminish.el][diminish.el]] or [[https://savannah.nongnu.org/projects/delight][delight.el]] to turn this off for every minor
+mode beginend defines by looping over the ~beginend-modes~ variable.
+Note that you will /also/ need to "turn off the lights" for
+~beginend-global-mode~, which is not part of this list.
+
+If you usually diminish all minor modes, I recommend using [[https://melpa.org/#/minions][minions.el]].
+
+In the following snippets, you can replace ~delight~ with ~diminish~ for
+similar results.
+
+Adapting the vanilla Emacs ~init.el~:
+
+#+BEGIN_SRC emacs-lisp
+(require 'beginend)
+(dolist (mode (cons 'beginend-global-mode (mapcar #'cdr beginend-modes)))
+        (diminish mode))
+(beginend-global-mode)
+#+END_SRC
+
+Adapting the [[https://github.com/jwiegley/use-package][use-package]] macro configuration:
+
+#+BEGIN_SRC emacs-lisp
+(use-package beginend 
+  :ensure t
+  :demand t
+  :config  
+  (dolist (mode (cons 'beginend-global-mode (mapcar #'cdr beginend-modes)))
+          (diminish mode))
+  (beginend-global-mode))
+#+END_SRC
+
+** Using
+
+At this point, newly opened supported buffers will get improved
+versions of ~M-<~ and ~M->~ (or any key bound to ~beginning-of-buffer~
+or ~end-of-buffer~).
+
+The following shows some screencasts. In each screencast, the cursor
+is moved to the meaningful beginning and end and to the real beginning
+and end.
+
+*** Dired mode
+[[file:media/beginend-dired-mode.gif]]
+*** Magit status mode
+[[file:media/beginend-magit-mode.gif]]
+*** Message mode
+[[file:media/beginend-message-mode.gif]]
+*** Programming mode
+[[file:media/beginend-prog-mode.gif]]
+*** Occur mode
+[[file:media/beginend-occur-mode.gif]]
+
+** Contributing
+
+Yes, please do! See [[file:CONTRIBUTING.md][CONTRIBUTING]] for guidelines.
+
+Adding new modes is a matter of a few lines of code. For example,
+these five lines (already included) define the behavior of beginend in
+~org-agenda-mode~:
+
+#+BEGIN_SRC emacs-lisp
+(beginend-define-mode org-agenda-mode
+  (progn
+    (org-agenda-next-item 1))
+  (progn
+    (org-agenda-previous-item 1)))
+#+END_SRC
+
+The first ~progn~ is responsible for moving point to the meaningful
+beginning of buffer. Before being executed, point is at the real
+beginning of the buffer (i.e., ~point-min~). The expression
+~(org-agenda-next-item 1)~ thus moves to the first agenda item.
+Similarly, the second ~progn~ is responsible for moving point to the
+meaningful end of buffer starting from real end (i.e., ~point-max~).
+
+** License
+
+See [[file:COPYING][COPYING]]. Copyright (c) 2017-2023 [[mailto:damien@cassou.me][Damien Cassou]] and [[mailto:matus.goljer@gmail.com][Matus Goljer]].

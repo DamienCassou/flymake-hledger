@@ -1,0 +1,8 @@
+# Generated files
+README.html
+*.elc
+*-pkg.el
+*.tar
+TAGS
+/*-autoloads.el
+/makel.mk
