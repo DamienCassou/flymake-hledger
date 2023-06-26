@@ -21,6 +21,8 @@ This Emacs package is a [[https://www.gnu.org/software/emacs/manual/html_node/em
 errors in your accounting journal. The backend should work in both
 [[https://github.com/ledger/ledger-mode][ledger-mode]] and [[https://github.com/narendraj9/hledger-mode][hledger-mode]] but is only tested in the former.
 
+[[./media/screenshot.png]]
+
 ** Installing and configuring
 
 The simplest is to install the package using [[http://melpa.org/][melpa]]. You may otherwise
