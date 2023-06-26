@@ -60,6 +60,12 @@ See URL `https://hledger.org/1.30/hledger.html#check' for the meaning of each ch
   (flymake-mode t)
   (add-hook 'flymake-diagnostic-functions #'flymake-hledger-check-buffer nil t))
 
+(defun flymake-hledger-disable ()
+  "Stop checking the hledger journal in the current buffer."
+  (interactive)
+  (flymake-mode -1)
+  (remove-hook 'flymake-diagnostic-functions #'flymake-hledger-check-buffer t))
+
 ;;;###autoload
 (defun flymake-hledger-check-buffer (report-fn &rest _)
   "Start a hledger process on the current buffer and report to Flymake.
