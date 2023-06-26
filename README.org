@@ -23,6 +23,10 @@ errors in your accounting journal. The backend should work in both
 
 [[./media/screenshot.png]]
 
+This package is similar to [[https://github.com/DamienCassou/flycheck-hledger][flycheck-hledger]] except that the later
+relies on the external [[https://www.flycheck.org][Flycheck]] engine whereas Flymake is built inside
+Emacs.
+
 ** Installing and configuring
 
 The simplest is to install the package using [[http://melpa.org/][melpa]]. You may otherwise
