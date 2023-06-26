@@ -58,7 +58,7 @@ See URL `https://hledger.org/1.30/hledger.html#check' for the meaning of each ch
   "Enable checking the hledger journal in the current buffer."
   (interactive)
   (flymake-mode t)
-  (add-hook 'flymake-diagnostic-functions 'flymake-hledger-check-buffer nil t))
+  (add-hook 'flymake-diagnostic-functions #'flymake-hledger-check-buffer nil t))
 
 ;;;###autoload
 (defun flymake-hledger-check-buffer (report-fn &rest _)
