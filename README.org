@@ -49,6 +49,9 @@ Emacs configuration in case you want to enable a few more checks:
     (add-to-list 'flymake-hledger-checks check))
 #+end_src
 
+If you are using ~ledger-mode~ any compatibility script assigned to
+~ledger-binary-path~ must have ~hledger~ at the end of the name.
+
 ** License
 
 See [[file:COPYING][COPYING]]. Copyright (c) 2023 [[mailto:damien@cassou.me][Damien Cassou]].
