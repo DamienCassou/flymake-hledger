@@ -26,6 +26,12 @@
 (require 'ert)
 (require 'flymake-hledger)
 
+(cl-defun flymake-hledger-test--compare-diagnostics (diagnostic &key beg end text)
+  "Compare DIAGNOSTIC to BEG, END and TEXT."
+  (should (equal (flymake-diagnostic-beg diagnostic) beg))
+  (should (equal (flymake-diagnostic-end diagnostic) end))
+  (should (equal (flymake-diagnostic-text diagnostic) text)))
+
 (ert-deftest flymake-hledger-test--make-diagnostics ()
   (let* ((source-buffer (generate-new-buffer "flymake-hledger-test"))
          (process-buffer (generate-new-buffer "flymake-hledger-test")))
@@ -43,32 +49,19 @@
       (insert "line 1\n" "line 2\n" "line 3\n" "line 4\n" "line 5\n"))
     (let ((diagnostics (with-current-buffer process-buffer
                          (flymake-hledger--make-diagnostics source-buffer))))
-      (message "coucou: %S" diagnostics)
       (should (length= diagnostics 4))
-      (should (equal (flymake-diagnostic-beg (seq-elt diagnostics 0))
-                     1))
-      (should (equal (flymake-diagnostic-end (seq-elt diagnostics 0))
-                     14))
-      (should (equal (flymake-diagnostic-text (seq-elt diagnostics 0))
-                     "message 1\n"))
-      (should (equal (flymake-diagnostic-beg (seq-elt diagnostics 1))
-                     15))
-      (should (equal (flymake-diagnostic-end (seq-elt diagnostics 1))
-                     20))
-      (should (equal (flymake-diagnostic-text (seq-elt diagnostics 1))
-                     "message 2.1\nmessage 2.2\n"))
-      (should (equal (flymake-diagnostic-beg (seq-elt diagnostics 2))
-                     22))
-      (should (equal (flymake-diagnostic-end (seq-elt diagnostics 2))
-                     28))
-      (should (equal (flymake-diagnostic-text (seq-elt diagnostics 2))
-                     "message 3\n"))
-      (should (equal (flymake-diagnostic-beg (seq-elt diagnostics 3))
-                     29))
-      (should (equal (flymake-diagnostic-end (seq-elt diagnostics 3))
-                     35))
-      (should (equal (flymake-diagnostic-text (seq-elt diagnostics 3))
-                     "message 4.1\nmessage 4.2\n")))))
+      (flymake-hledger-test--compare-diagnostics
+       (seq-elt diagnostics 0)
+       :beg 1 :end 14 :text "message 1\n")
+      (flymake-hledger-test--compare-diagnostics
+       (seq-elt diagnostics 1)
+       :beg 15 :end 20 :text "message 2.1\nmessage 2.2\n")
+      (flymake-hledger-test--compare-diagnostics
+       (seq-elt diagnostics 2)
+       :beg 22 :end 28 :text "message 3\n")
+      (flymake-hledger-test--compare-diagnostics
+       (seq-elt diagnostics 3)
+       :beg 29 :end 35 :text "message 4.1\nmessage 4.2\n"))))
 
 (provide 'flymake-hledger-test)
 ;;; flymake-hledger-test.el ends here
