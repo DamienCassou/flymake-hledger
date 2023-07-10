@@ -44,12 +44,14 @@
        ;; <start-line>:<start-column>:
        "hledger: Error: -:4:1:\n" " ^\n" "message 3\n"
        ;; <start-line>:
-       "hledger: Error: -:5:\n" " ^\n" "message 4.1\n" "message 4.2\n"))
+       "hledger: Error: -:5:\n" " ^\n" "message 4.1\n" "message 4.2\n"
+       ;; .exe extension to binary name
+       "hledger.exe: Error: -:5:\n" " ^\n" "message 5\n"))
     (with-current-buffer source-buffer
       (insert "line 1\n" "line 2\n" "line 3\n" "line 4\n" "line 5\n"))
     (let ((diagnostics (with-current-buffer process-buffer
                          (flymake-hledger--make-diagnostics source-buffer))))
-      (should (length= diagnostics 4))
+      (should (length= diagnostics 5))
       (flymake-hledger-test--compare-diagnostics
        (seq-elt diagnostics 0)
        :beg 1 :end 14 :text "message 1\n")
@@ -61,7 +63,10 @@
        :beg 22 :end 28 :text "message 3\n")
       (flymake-hledger-test--compare-diagnostics
        (seq-elt diagnostics 3)
-       :beg 29 :end 35 :text "message 4.1\nmessage 4.2\n"))))
+       :beg 29 :end 35 :text "message 4.1\nmessage 4.2\n")
+      (flymake-hledger-test--compare-diagnostics
+       (seq-elt diagnostics 4)
+       :beg 29 :end 35 :text "message 5\n"))))
 
 (provide 'flymake-hledger-test)
 ;;; flymake-hledger-test.el ends here

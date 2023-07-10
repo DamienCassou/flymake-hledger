@@ -136,7 +136,7 @@ hledger."
                    (buffer-substring (point-min) (point-max))))))))
 
 (defconst flymake-hledger--error-regexp
-  (rx bol "hledger: Error: "
+  (rx bol "hledger" (optional ".exe") ": Error: "
       (+ (not ":")) ":" ; filename (normally "-" to indicate stdin
       (or
        ;; <start-line>-<end-line>:
