@@ -37,13 +37,16 @@
   "List of a program and its arguments to start hledger."
   :type '(repeat string))
 
-(defcustom flymake-hledger-checks '("accounts" "commodities" "balancednoautoconversion")
+(defcustom flymake-hledger-checks '("accounts" "commodities" "balanced")
   "List of tests to run on the journal.
-See URL `https://hledger.org/1.30/hledger.html#check' for the meaning of each check."
+See URL `https://hledger.org/1.41/hledger.html#check' for the meaning of each check."
   :type '(set
+          ;; Strict checks
           (const "accounts")
+          (const "balanced")
           (const "commodities")
-          (const "balancednoautoconversion")
+
+          ;; Other checks
           (const "ordereddates")
           (const "payees")
           (const "recentassertions")
