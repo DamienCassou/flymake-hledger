@@ -8,10 +8,6 @@
         <a href="https://melpa.org/#/flymake-hledger">
           <img alt="MELPA" src="https://melpa.org/packages/flymake-hledger-badge.svg"/>
         </a>
-
-        <a href="https://github.com/DamienCassou/flymake-hledger/actions">
-          <img alt="pipeline status" src="https://github.com/DamienCassou/flymake-hledger/actions/workflows/test.yml/badge.svg" />
-        </a>
       </p>
   #+END_HTML
 
