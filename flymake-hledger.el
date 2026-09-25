@@ -28,6 +28,7 @@
 
 ;;; Code:
 (require 'flymake)
+(require 'subr-x)  ; string-trim, in Emacs 28
 
 (defgroup flymake-hledger nil
   "Flymake module to check hledger journals."
@@ -138,72 +139,96 @@ hledger."
                    :explanation
                    (buffer-substring (point-min) (point-max))))))))
 
+;; hledger error messages have changed over time.  Here we support
+;; hledger 1.40 and newer, including hledger 2.  Most error messages
+;; start with a line like "hledger: Error: FILE:LINE[-ENDLINE][:COL[-ENDCOL]]:",
+;; followed by an excerpt of the journal, then an empty line and one or
+;; more lines of explanation, which we use as the diagnostic's text.  Eg
+;; (see also https://github.com/simonmichael/hledger/tree/master/hledger/test/errors):
+;;
+;;     hledger: Error: -:4:8:
+;;       | 2022-01-01
+;;     4 |     a               0 = 1
+;;       |                       ^^^
+;;
+;;     Balance assertion failed in a
+;;     ...
+;;
+;; FILE is "-" (the standard input, where hledger reads the buffer from)
+;; unless the error is in an included file.  Some errors (ordereddates,
+;; uniqueleafnames) show two excerpts, separated by an empty line
+;; (hledger 2) or by a " " or " ..." line (hledger 1).  Some errors have
+;; no position, eg "hledger: Error: sorry, CSV files can't be included yet".
 (defconst flymake-hledger--error-regexp
   (rx bol "hledger" (optional ".exe") ": Error: "
-      (+ (not ":")) ":" ; filename (normally "-" to indicate stdin
       (or
-       ;; <start-line>-<end-line>:
-       (seq (group-n 1 (one-or-more (any digit)))
-            "-"
-            (group-n 3 (one-or-more (any digit)))
-            ":\n")
-       ;; <start-line>:<start-column>-<end-column>:
-       (seq (group-n 1 (one-or-more (any digit)))
+       ;; An error with a position, and one or more excerpts:
+       (seq (group-n 6 (optional alpha ":") (one-or-more (not (any ":\n"))))
             ":"
-            (group-n 2 (one-or-more (any digit)))
-            "-"
-            (group-n 4 (one-or-more (any digit)))
-            ":\n")
-       ;; <start-line>:<start-column>:
-       (seq (group-n 1 (one-or-more (any digit)))
-            ":"
-            (group-n 2 (one-or-more (any digit)))
-            ":\n")
-       ;; <start-line>:
-       (seq (group-n 1 (one-or-more (any digit)))
-            ":\n"))
-      ;; excerpt lines:
-      (one-or-more bol (any space digit) (zero-or-more not-newline) "\n")
-      ;; message lines:
-      (group-n 5 (one-or-more bol (zero-or-more not-newline) "\n")))
-  "Regular expression matching hledger errors.
+            (group-n 7
+              (group-n 1 (one-or-more digit))
+              (optional "-" (group-n 3 (one-or-more digit)))
+              (optional ":" (group-n 2 (one-or-more digit))
+                        (optional "-" (group-n 4 (one-or-more digit)))))
+            ":\n"
+            (one-or-more
+             (one-or-more (or (seq (one-or-more digit) " ") (>= 2 " "))
+                          "|" (zero-or-more not-newline) "\n")
+             (optional (optional " " (optional "...")) "\n"))
+            (group-n 5 (zero-or-more anychar)))
+       ;; An error without a position:
+       (group-n 5 (zero-or-more anychar))))
+  "Regular expression matching an hledger error.
 
 Group 1 is for the starting line.
 Group 2 is for the starting column.
 Group 3 is for the ending line.
 Group 4 is for the ending column.
-Group 5 is for the error message.")
+Group 5 is for the error message.
+Group 6 is for the file name.
+Group 7 is for the whole position (lines and columns).")
 
 (defun flymake-hledger--make-diagnostics (source-buffer)
-  "Return diagnostics of hledger errors listed in the current buffer.
+  "Return a diagnostic for the hledger error in the current buffer, if any.
 
 SOURCE-BUFFER should contain the ledger being checked.  The current buffer
-should contain hledger error messages."
-  ;; The code below parses error messages from the end to the beginning of the
-  ;; buffer. This is easier than using the usual re-search-forward because
-  ;; hledger has a clear way to indicate the beginning of an error message but
-  ;; no clear ending.
-  (goto-char (point-max))
+should contain hledger's output.  hledger stops at the first error, so
+this returns a list of at most one diagnostic."
+  (goto-char (point-min))
   (save-match-data
-    (cl-loop
-     while (and (> (point) (point-min)) (re-search-backward flymake-hledger--error-regexp nil t))
-     for start-line = (string-to-number (match-string 1))
-     for start-column = (when (match-string 2) (string-to-number (match-string 2)))
-     for end-line = (if (match-string 3)
-                        (string-to-number (match-string 3))
-                      start-line)
-     for end-column = (when (match-string 4) (string-to-number (match-string 4)))
-     for message = (match-string 5)
-     for start-positions = (flymake-diag-region source-buffer start-line start-column)
-     for end-positions = (flymake-diag-region source-buffer end-line end-column)
-     for diagnostic = (flymake-make-diagnostic
-                       source-buffer
-                       (car start-positions)
-                       (cdr end-positions)
-                       :error
-                       message)
-     collect diagnostic into diagnostics
-     finally return (nreverse diagnostics))))
+    (when (re-search-forward flymake-hledger--error-regexp nil t)
+      (let* ((number (lambda (group) (when (match-string group)
+                                        (string-to-number (match-string group)))))
+             (line (funcall number 1))
+             (file (match-string 6))
+             (message (string-trim (match-string 5)))
+             (region
+              (if (equal file "-")
+                  (flymake-hledger--region source-buffer
+                                           line (funcall number 2)
+                                           (or (funcall number 3) line) (funcall number 4))
+                ;; The error has no position, or is in another file
+                ;; (included by this one): show it on the first line.
+                (flymake-hledger--region source-buffer 1))))
+        (when (and file (not (equal file "-")))
+          (setq message (format "In %s:%s:\n%s"
+                                (file-relative-name
+                                 file (buffer-local-value 'default-directory source-buffer))
+                                (match-string 7)
+                                message)))
+        (list (flymake-make-diagnostic source-buffer (car region) (cdr region)
+                                       :error message))))))
+
+(defun flymake-hledger--region (buffer line &optional column end-line end-column)
+  "Return BUFFER's region (BEG . END) for an hledger error position.
+
+LINE, COLUMN, END-LINE and END-COLUMN are that position.  If Flymake
+can't find a region for it, return the first line's region."
+  (let ((start (flymake-diag-region buffer line column))
+        (end (flymake-diag-region buffer (or end-line line) end-column)))
+    (if (and start end)
+        (cons (car start) (cdr end))
+      (or (flymake-diag-region buffer 1) (cons 1 1)))))
 
 (provide 'flymake-hledger)
 ;;; flymake-hledger.el ends here

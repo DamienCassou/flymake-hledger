@@ -26,47 +26,195 @@
 (require 'ert)
 (require 'flymake-hledger)
 
+(defconst flymake-hledger-test--source
+  (mapconcat (lambda (n) (format "line %2d of the journal\n" n)) (number-sequence 1 12) "")
+  "Contents of the journal being checked, in the tests below.
+Each line is 22 characters long, so line N starts at position 1+23*(N-1).")
+
+(defun flymake-hledger-test--diagnose (output)
+  "Return the diagnostics flymake-hledger makes from hledger's OUTPUT."
+  (let ((source-buffer (generate-new-buffer "flymake-hledger-test-source")))
+    (unwind-protect
+        (progn
+          (with-current-buffer source-buffer (insert flymake-hledger-test--source))
+          (with-temp-buffer
+            (insert output)
+            (flymake-hledger--make-diagnostics source-buffer)))
+      (kill-buffer source-buffer))))
+
 (cl-defun flymake-hledger-test--compare-diagnostics (diagnostic &key beg end text)
   "Compare DIAGNOSTIC to BEG, END and TEXT."
   (should (equal (flymake-diagnostic-beg diagnostic) beg))
   (should (equal (flymake-diagnostic-end diagnostic) end))
   (should (equal (flymake-diagnostic-text diagnostic) text)))
 
-(ert-deftest flymake-hledger-test--make-diagnostics ()
-  (let* ((source-buffer (generate-new-buffer "flymake-hledger-test"))
-         (process-buffer (generate-new-buffer "flymake-hledger-test")))
-    (with-current-buffer process-buffer
-      (insert
-       ;; <start-line>-<end-line>:
-       "hledger: Error: -:1-2:\n" " ^\n" "message 1\n"
-       ;; <start-line>:<start-column>-<end-column>:
-       "hledger: Error: -:3:1-5:\n" " ^\n" "message 2.1\n" "message 2.2\n"
-       ;; <start-line>:<start-column>:
-       "hledger: Error: -:4:1:\n" " ^\n" "message 3\n"
-       ;; <start-line>:
-       "hledger: Error: -:5:\n" " ^\n" "message 4.1\n" "message 4.2\n"
-       ;; .exe extension to binary name
-       "hledger.exe: Error: -:5:\n" " ^\n" "message 5\n"))
-    (with-current-buffer source-buffer
-      (insert "line 1\n" "line 2\n" "line 3\n" "line 4\n" "line 5\n"))
-    (let ((diagnostics (with-current-buffer process-buffer
-                         (flymake-hledger--make-diagnostics source-buffer))))
-      (should (length= diagnostics 5))
-      (flymake-hledger-test--compare-diagnostics
-       (seq-elt diagnostics 0)
-       :beg 1 :end 14 :text "message 1\n")
-      (flymake-hledger-test--compare-diagnostics
-       (seq-elt diagnostics 1)
-       :beg 15 :end 20 :text "message 2.1\nmessage 2.2\n")
-      (flymake-hledger-test--compare-diagnostics
-       (seq-elt diagnostics 2)
-       :beg 22 :end 28 :text "message 3\n")
-      (flymake-hledger-test--compare-diagnostics
-       (seq-elt diagnostics 3)
-       :beg 29 :end 35 :text "message 4.1\nmessage 4.2\n")
-      (flymake-hledger-test--compare-diagnostics
-       (seq-elt diagnostics 4)
-       :beg 29 :end 35 :text "message 5\n"))))
+(defmacro flymake-hledger-test--deftest (name output &rest expected)
+  "Define a test called NAME, parsing hledger's OUTPUT.
+EXPECTED are the keyword arguments of
+`flymake-hledger-test--compare-diagnostics', describing the only
+diagnostic expected."
+  (declare (indent 1))
+  `(ert-deftest ,(intern (format "flymake-hledger-test--%s" name)) ()
+     (let ((diagnostics (flymake-hledger-test--diagnose ,output)))
+       (should (length= diagnostics 1))
+       (flymake-hledger-test--compare-diagnostics (car diagnostics) ,@expected))))
+
+(flymake-hledger-test--deftest line
+  ;; hledger 2
+  "hledger: Error: -:4:
+  | 2022-01-01
+4 |     (a)                                            1
+  |      ^
+
+Strict account checking is enabled, and
+account \"a\" has not been declared.
+Consider adding an account directive. Examples:
+
+account a
+"
+  :beg 70 :end 92
+  :text "Strict account checking is enabled, and
+account \"a\" has not been declared.
+Consider adding an account directive. Examples:
+
+account a")
+
+(flymake-hledger-test--deftest line-range
+  "hledger: Error: -:5-7:
+5 | 2022-01-01
+  |     a                                              1 A
+  |     b                                             -1 B
+
+This multi-commodity transaction is unbalanced.
+The real postings' sum should be 0 but is 1 A, -1 B
+"
+  :beg 93 :end 161
+  :text "This multi-commodity transaction is unbalanced.
+The real postings' sum should be 0 but is 1 A, -1 B")
+
+(flymake-hledger-test--deftest line-column
+  ;; No empty line before the message
+  "hledger: Error: -:3:2:
+  |
+3 | 1
+  |  ^
+unexpected newline
+expecting date separator or digit
+"
+  :beg 48 :end 69
+  :text "unexpected newline
+expecting date separator or digit")
+
+(flymake-hledger-test--deftest line-column-range
+  "hledger: Error: -:3:6-7:
+3 | line  3 of the journal
+  |      ^^
+
+message
+"
+  :beg 52 :end 54
+  :text "message")
+
+(flymake-hledger-test--deftest two-excerpts-hledger-2
+  "hledger: Error: -:10:
+7 | 2022-01-02 p
+  |     (a)                                            1
+
+10 | 2022-01-01 p
+   | ^^^^^^^^^^
+   |     (a)                                            1
+
+Ordered dates checking is enabled, and this transaction's
+date (2022-01-01) is out of order with the previous transaction.
+"
+  :beg 208 :end 230
+  :text "Ordered dates checking is enabled, and this transaction's
+date (2022-01-01) is out of order with the previous transaction.")
+
+(flymake-hledger-test--deftest two-excerpts-hledger-1
+  ;; hledger 1 separated the excerpts by a line containing a space
+  (concat "hledger: Error: -:10:
+7 | 2022-01-02 p
+  |     (a)               1
+" " \n" "10 | 2022-01-01 p
+   | ^^^^^^^^^^
+   |     (a)               1
+
+Ordered dates checking is enabled, and this transaction's
+date (2022-01-01) is out of order with the previous transaction.
+")
+  :beg 208 :end 230
+  :text "Ordered dates checking is enabled, and this transaction's
+date (2022-01-01) is out of order with the previous transaction.")
+
+(flymake-hledger-test--deftest two-excerpts-hledger-1-ellipsis
+  ;; or by a " ..." line
+  "hledger: Error: -:12:
+3 | account a:c
+ ...
+12 |   (b:c)  1
+   |    ^^^
+
+Checking for unique account leaf names is enabled, and
+account leaf name \"c\" is not unique.
+"
+  :beg 254 :end 276
+  :text "Checking for unique account leaf names is enabled, and
+account leaf name \"c\" is not unique.")
+
+(flymake-hledger-test--deftest windows
+  "hledger.exe: Error: -:5:
+5 | 2022-01-01
+  |     a                                              1
+
+This transaction is unbalanced.
+"
+  :beg 93 :end 115
+  :text "This transaction is unbalanced.")
+
+(flymake-hledger-test--deftest no-position
+  "hledger: Error: sorry, CSV files can't be included yet
+"
+  :beg 1 :end 23
+  :text "sorry, CSV files can't be included yet")
+
+(flymake-hledger-test--deftest no-position-several-lines
+  "hledger: Error: first line
+second line
+"
+  :beg 1 :end 23
+  :text "first line
+second line")
+
+(flymake-hledger-test--deftest included-file
+  ;; Reported on the first line, with the other file's name and position
+  (format "hledger: Error: %s:2-4:
+2 | 2022-01-02 bad
+  |     a                                              1
+  |     b                                              2
+
+This transaction is unbalanced.
+The real postings all have the same sign.
+" (expand-file-name "inc.j"))
+  :beg 1 :end 23
+  :text "In inc.j:2-4:
+This transaction is unbalanced.
+The real postings all have the same sign.")
+
+(flymake-hledger-test--deftest position-out-of-range
+  ;; Eg because the buffer has changed: Flymake uses the last line
+  "hledger: Error: -:99:
+99 | 2022-01-01
+   |     a                                              1
+
+This transaction is unbalanced.
+"
+  :beg 254 :end 276
+  :text "This transaction is unbalanced.")
+
+(ert-deftest flymake-hledger-test--no-error ()
+  (should (null (flymake-hledger-test--diagnose "")))
+  (should (null (flymake-hledger-test--diagnose "some other output\n"))))
 
 (provide 'flymake-hledger-test)
 ;;; flymake-hledger-test.el ends here
