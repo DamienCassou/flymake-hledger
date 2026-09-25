@@ -17,15 +17,16 @@
 
 ** Summary
 
-This Emacs package is a [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Flymake.html][Flymake]]'s backend for [[https://hledger.org/][hledger]]: it reports
-errors in your accounting journal. The backend should work in both
-[[https://github.com/ledger/ledger-mode][ledger-mode]] and [[https://github.com/narendraj9/hledger-mode][hledger-mode]] but is only tested in the former.
+This Emacs package uses [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Flymake.html][Flymake]] to report errors in your [[https://hledger.org/][hledger]]
+journal. It works in journal buffers using
+[[https://github.com/narendraj9/hledger-mode][hledger-mode]], or [[https://github.com/ledger/ledger-mode][ledger-mode]] with ~ledger-binary-path~ pointing to hledger.
+It fully supports hledger 1.40+ and hledger 2, and partially supports hledger 1.26+.
 
 [[./media/screenshot.png]]
 
-This package is similar to [[https://github.com/DamienCassou/flycheck-hledger][flycheck-hledger]] except that the later
-relies on the external [[https://www.flycheck.org][Flycheck]] engine whereas Flymake is built inside
-Emacs.
+This package is similar to [[https://github.com/DamienCassou/flycheck-hledger][flycheck-hledger]], except that the latter
+uses [[https://www.flycheck.org][Flycheck]], which is a separate package you have to install,
+whereas Flymake is built into Emacs.
 
 ** Installing and configuring
 
@@ -51,6 +52,24 @@ Emacs configuration in case you want to enable a few more checks:
 
 If you are using ~ledger-mode~ any compatibility script assigned to
 ~ledger-binary-path~ must have ~hledger~ at the end of the name.
+
+** Usage
+
+When flymake-hledger is enabled in a journal buffer, hledger's ~check~
+command is run on the buffer's content, and any problem is
+highlighted. hledger stops at the first problem, so there is at most
+one at a time.
+
+~M-x flymake-show-buffer-diagnostics~ lists the problem, and
+~M-x flymake-goto-next-error~ moves to it. Flymake doesn't bind these
+commands to keys by default; you might like to bind them, eg:
+
+#+begin_src emacs-lisp
+  (with-eval-after-load 'flymake
+    (define-key flymake-mode-map (kbd "C-c ! n") #'flymake-goto-next-error)
+    (define-key flymake-mode-map (kbd "C-c ! p") #'flymake-goto-prev-error)
+    (define-key flymake-mode-map (kbd "C-c ! l") #'flymake-show-buffer-diagnostics))
+#+end_src
 
 ** License
 
