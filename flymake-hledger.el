@@ -40,7 +40,8 @@
 
 (defcustom flymake-hledger-checks '("accounts" "commodities" "balanced")
   "List of tests to run on the journal.
-See URL `https://hledger.org/1.41/hledger.html#check' for the meaning of each check."
+The basis check requires hledger 2.
+See URL `https://hledger.org/hledger.html#check' for the meaning of each check."
   :type '(set
           ;; Strict checks
           (const "accounts")
@@ -48,6 +49,7 @@ See URL `https://hledger.org/1.41/hledger.html#check' for the meaning of each ch
           (const "commodities")
 
           ;; Other checks
+          (const "basis")
           (const "ordereddates")
           (const "payees")
           (const "recentassertions")
