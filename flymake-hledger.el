@@ -3,8 +3,8 @@
 ;; Copyright (C) 2023  Damien Cassou
 
 ;; Author: Damien Cassou <damien@cassou.me>
-;; Url: https://github.com/DamienCassou/flymake-hledger
-;; Package-requires: ((emacs "28.2"))
+;; URL: https://github.com/DamienCassou/flymake-hledger
+;; Package-Requires: ((emacs "28.2"))
 ;; Version: 0.1.0
 
 ;; This program is free software; you can redistribute it and/or modify
